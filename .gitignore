@@ -1,0 +1,15 @@
+# .gitignore
+*.pkl
+*.npy
+*.gml
+*.gexf
+*.csv
+
+datafiles/recommendation_network.gml
+large_graph.gexf
+datafiles_final/dataframe.pkl
+datafiles/dataframe.pkl
+figures/
+datafiles/
+genetic recommendation algorithm/
+Dataset.npy
