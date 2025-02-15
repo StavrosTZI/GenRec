@@ -5,8 +5,9 @@ import random
 from sklearn.metrics.pairwise import cosine_similarity
 from multiprocessing import Pool
 from datetime import datetime
+import matplotlib.pyplot as plt
 
-RESULTS_FILE = "ga_experiments.csv"
+RESULTS_FILE = "results.csv"
 
 
 #In this section a different aproach is used for the entire system using low-rank user embeddings
@@ -99,9 +100,12 @@ def GenRec0(dataset, population_size, generations,
     # Fixed validation subset
     fixed_validation = random.sample(all_items, int(sample_ratio * len(all_items)))
     validation_subset = {k: item_split_dict[k] for k in fixed_validation}
+    test_items = set(all_items) - set(fixed_validation)
+    test_subset = {k: item_split_dict[k] for k in test_items}
 
     # Initialize population
     population = create_initial_population0(population_size, n_users)
+    graph_data = []
     
     # Evolution loop
     with Pool(processes=os.cpu_count()-1) as pool:
@@ -131,11 +135,29 @@ def GenRec0(dataset, population_size, generations,
             # Logging
             best = min(fitness.values())
             avg = np.mean(list(fitness.values()))
+            graph_data.append((gen, avg))
             print(f"Gen {gen}: Best={best:.2f}, Avg={avg:.2f}")
     
     best_fitness = min(fitness.values())
     avg_fitness = np.mean(list(fitness.values()))
-    return best_fitness, avg_fitness
+
+    #ploting avg fitness
+    plt.figure(figsize=(8, 5))
+    plt.plot(*zip(*graph_data), marker='o', linestyle='-', color='b', label="Avg Fitness") 
+    plt.ylim(0, max([item[1] for item in graph_data]))
+    plt.xlabel("Generation")
+    plt.ylabel("Average Fitness")
+    plt.title("Generation vs Average Fitness")
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.legend()
+    timestamp= datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+    folder = "figures"  # Change this to your desired folder
+    os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
+    file_path = os.path.join(folder, f"Fitness_plot{timestamp}.png")
+    plt.savefig(file_path)
+
+    test_score = evaluate_individual0(population[0], test_subset)
+    return best_fitness, avg_fitness, test_score
 
 def log_results(params, best_fitness, avg_fitness):#function to log results to a csv file
     """Log parameters and results to a DataFrame and save to CSV."""
@@ -184,29 +206,17 @@ if __name__ == '__main__':
     
     param_combinations =[ {
             "population_size": 100,
-            "generations": 500,
+            "generations": 20,
             "sample_ratio": 0.6,
             "similarity_penalty": 0.25,
-            "elitism":5,
+            "elitism":10,
             "lamda_reg":0.01,
-            "split_ratio": 0.8,
+            "split_ratio": 0.5,
             "noise_scale": 0.2,
-            "mutation_rate": 0.01,
+            "mutation_rate": 0.21,
             "scale":0.1 
-        },
-        {
-            "population_size": 100,
-            "generations": 500,
-            "sample_ratio": 0.6,
-            "similarity_penalty": 0.1,
-            "elitism":5,
-            "lamda_reg":0.5,
-            "split_ratio": 0.8,
-            "noise_scale": 0.3,
-            "mutation_rate": 0.5,
-            "scale":0.1 
-        }
-    ]
+        }]
+      
     
     
     
@@ -214,7 +224,8 @@ if __name__ == '__main__':
     for params in param_combinations:
         print(f"Testing parameters: {params}")
         print("Running GenRec0")
-        best_fitness, avg_fitness = GenRec0(final_df, **params)
+        best_fitness, avg_fitness,test_score = GenRec0(final_df, **params)
+        print("Test score: {0}".format(test_score))
         log_results(params, best_fitness, avg_fitness)
         
 

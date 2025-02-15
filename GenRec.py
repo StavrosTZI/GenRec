@@ -6,11 +6,12 @@ import random
 from sklearn.metrics.pairwise import cosine_similarity
 from multiprocessing import Pool
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 
-RESULTS_FILE = "ga_experiments.csv"
+RESULTS_FILE = "results.csv"
 
-
+#Normalization 0-10 scale
 def quick_norm10(arr):
     mean = np.mean(arr)
     std = np.std(arr)
@@ -69,7 +70,7 @@ def predict_ratings3(Wu, Wl, Rmi, Rtrue, lambda_reg=0.01):
     Ri_pred = quick_norm10(Ri_pred)
     Ri_error = np.mean((Ri_pred - Rtrue) ** 2)  # Vectorized MSE
     return Ri_error
-
+#Splits the data into known and unknown ratings for each item and computes the known and unknown user sets
 def precompute_item_split(split_ratio,dataframe):
     final_items = final_df["item"].unique()
     final_items_num = len(final_items)
@@ -98,11 +99,10 @@ def precompute_item_split(split_ratio,dataframe):
            
        item_split_dict[item] = (known,unknown, ratings_that_exist, Rtrue)
     print("number of errors:",cntr)
-    #aslo computing numver of unique users for size of W
     final_users = final_df["user"].unique()
     return item_split_dict, final_users.size
     
-
+#function to evaluate the fitness of an individual
 def evaluate_individual(W,item_subset,lamda_reg=0.01):
     total_error=0.0
     count=0
@@ -203,7 +203,7 @@ def create_heuristic_symmetric_population(size, user_similarity, noise_scale=0.2
     return population
 
 
-#penalize too similar encouraging divwrsity
+#penalize too similar encouraging diversity
 def calculate_diversity(population):
     diversity_penalty = {}
     for i, ind1 in enumerate(population):
@@ -312,11 +312,14 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
     fixed_validation_size = int(sample_ratio * len(all_items))
     fixed_validation_items = random.sample(all_items, fixed_validation_size)  # Fixed seed for reproducibility
     current_items_subset = {k: initial_items[k] for k in fixed_validation_items}  # Use this for all generations
+    test_items = set(all_items) - set(fixed_validation_items)
+    test_subset = {k: initial_items[k] for k in test_items}
 
     populations = {}
     initial_pop=create_hybrid_population(population_size,user_similarity)
     populations["initial"]=initial_pop
     pop = initial_pop
+    graph_data=[]
     #initial_gen_items=item_selector(initial_items,10)
     
     with Pool(processes=os.cpu_count() -1) as pool:   
@@ -354,10 +357,30 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
             pop = new_pop[:population_size]
             
             populations[generation]=pop
-            print(f"Generation {generation} complete,average fitness:,{np.average(np.array(list(fitness.values())))}")
+            avg_fitness=np.average(np.array(list(fitness.values())))
+            graph_data.append([generation, avg_fitness])
+
+            print(f"Generation {generation} complete,average fitness:, {avg_fitness}")
     best_fitness=min(np.array(list(fitness.values())))
     avg_fitness=np.average(np.array(list(fitness.values())))
-    print("Last generation complete, best fitness:{0}avg_fitness{1}".format(best_fitness,avg_fitness))
+    
+    #plotting fitness per gen
+    plt.figure(figsize=(8, 5))
+    plt.plot(*zip(*graph_data), marker='o', linestyle='-', color='b', label="Avg Fitness") 
+    plt.ylim(0, max([item[1] for item in graph_data]))
+    plt.xlabel("Generation")
+    plt.ylabel("Average Fitness")
+    plt.title("Generation vs Average Fitness")
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.legend()
+    timestamp= datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+    folder = "figures"  # Change this to your desired folder
+    os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
+    file_path = os.path.join(folder, f"Fitness_plot{timestamp}.png")
+    plt.savefig(file_path)
+
+    test_score = evaluate_individual(pop[0], test_subset)
+    print("Last generation complete, best fitness:{0}avg_fitness:{1}test fitness:{2}".format(best_fitness,avg_fitness,test_score))
     return best_fitness,avg_fitness
 
 #loaded functions
@@ -415,8 +438,8 @@ if __name__ == '__main__':
     
     param_combinations =[ 
         {
-            "population_size": 50,
-            "generations": 50,
+            "population_size": 20,
+            "generations": 20,
             "sample_ratio": 0.4,
             "similarity_penalty": 0.1,
             "elitism":4,
