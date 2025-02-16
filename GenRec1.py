@@ -9,7 +9,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 
-RESULTS_FILE = "results.csv"
+RESULTS_FILE = "GenRec1Results.csv"
 
 #Normalization 0-10 scale
 def quick_norm10(arr):
@@ -68,8 +68,10 @@ def predict_ratings3(Wu, Wl, Rmi, Rtrue, lambda_reg=0.01):
     except:
         Ri_pred = np.linalg.lstsq(A, b, rcond=None)[0]
     Ri_pred = quick_norm10(Ri_pred)
-    Ri_error = np.mean((Ri_pred - Rtrue) ** 2)  # Vectorized MSE
+    Ri_error = np.mean((Ri_pred - Rtrue) ** 2)  # Vectorized MSE  
     return Ri_error
+
+
 #Splits the data into known and unknown ratings for each item and computes the known and unknown user sets
 def precompute_item_split(split_ratio,dataframe):
     final_items = final_df["item"].unique()
@@ -381,7 +383,7 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
 
     test_score = evaluate_individual(pop[0], test_subset)
     print("Last generation complete, best fitness:{0}avg_fitness:{1}test fitness:{2}".format(best_fitness,avg_fitness,test_score))
-    return best_fitness,avg_fitness
+    return best_fitness,avg_fitness,test_score
 
 #loaded functions
 
@@ -391,13 +393,14 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
 
 
 
-def log_results(params, best_fitness, avg_fitness):#function to log results to a csv file
+def log_results(params, best_fitness, avg_fitness, test_score):#function to log results to a csv file
     """Log parameters and results to a DataFrame and save to CSV."""
     # Create a results row
     result_row = {
         **params,
         "best_fitness": best_fitness,
         "avg_fitness": avg_fitness,
+        "test_score": test_score,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     
@@ -423,12 +426,6 @@ if __name__ == '__main__':
     
 
     try:
-        W=np.load("datafiles\\W.npy")
-        print("W loaded")
-    except Exception as e:
-        print(f"Error loading W: {e}")
-
-    try:
         unique_items = final_df["item"].unique()
         print(f"Unique items: {unique_items.shape}")
         users_that_rated = {item: final_df[final_df["item"] == item]['user'].values for item in unique_items}
@@ -439,14 +436,14 @@ if __name__ == '__main__':
     param_combinations =[ 
         {
             "population_size": 20,
-            "generations": 20,
-            "sample_ratio": 0.4,
+            "generations": 50,
+            "sample_ratio": 0.8,
             "similarity_penalty": 0.1,
             "elitism":4,
-            "lamda_reg":0.1,
+            "lamda_reg":0.001,
             "split_ratio": 0.8,
             "noise_scale": 0.4,
-            "mutation_rate": 0.4,
+            "mutation_rate": 0.01,
             "scale":0.1 
         }
     ]
@@ -457,8 +454,8 @@ if __name__ == '__main__':
     for params in param_combinations:
         print(f"Testing parameters: {params}")
         print("Running GenRec1")
-        best_fitness, avg_fitness = GenRec1(final_df, **params)
-        log_results(params, best_fitness, avg_fitness)
+        best_fitness, avg_fitness,test_score = GenRec1(final_df, **params)
+        log_results(params, best_fitness, avg_fitness,test_score)
         
 
 

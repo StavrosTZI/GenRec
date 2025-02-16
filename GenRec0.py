@@ -7,12 +7,12 @@ from multiprocessing import Pool
 from datetime import datetime
 import matplotlib.pyplot as plt
 
-RESULTS_FILE = "results.csv"
+RESULTS_FILE = "GenRec0Results.csv"
 
 
 #In this section a different aproach is used for the entire system using low-rank user embeddings
 #lets run them side by side and compare results
-RANK = 50  # Hyperparameter (e.g., 10-50)
+RANK = 30  # Hyperparameter (e.g., 10-50)
 
 def precompute_item_split(split_ratio,dataframe):
     final_items = final_df["item"].unique()
@@ -157,15 +157,17 @@ def GenRec0(dataset, population_size, generations,
     plt.savefig(file_path)
 
     test_score = evaluate_individual0(population[0], test_subset)
+    print("Last generation complete, best fitness:{0}avg_fitness:{1}test score:{2}".format(best_fitness,avg_fitness,test_score))
     return best_fitness, avg_fitness, test_score
 
-def log_results(params, best_fitness, avg_fitness):#function to log results to a csv file
+def log_results(params, best_fitness, avg_fitness, test_score):#function to log results to a csv file
     """Log parameters and results to a DataFrame and save to CSV."""
     # Create a results row
     result_row = {
         **params,
         "best_fitness": best_fitness,
         "avg_fitness": avg_fitness,
+        "test_score": test_score,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     
@@ -191,12 +193,6 @@ if __name__ == '__main__':
     
 
     try:
-        W=np.load("datafiles\\W.npy")
-        print("W loaded")
-    except Exception as e:
-        print(f"Error loading W: {e}")
-
-    try:
         unique_items = final_df["item"].unique()
         print(f"Unique items: {unique_items.shape}")
         users_that_rated = {item: final_df[final_df["item"] == item]['user'].values for item in unique_items}
@@ -206,14 +202,14 @@ if __name__ == '__main__':
     
     param_combinations =[ {
             "population_size": 100,
-            "generations": 20,
-            "sample_ratio": 0.6,
+            "generations": 50,
+            "sample_ratio": 0.8,
             "similarity_penalty": 0.25,
-            "elitism":10,
+            "elitism":4,
             "lamda_reg":0.01,
-            "split_ratio": 0.5,
+            "split_ratio": 0.8,
             "noise_scale": 0.2,
-            "mutation_rate": 0.21,
+            "mutation_rate": 0.01,
             "scale":0.1 
         }]
       
@@ -225,8 +221,7 @@ if __name__ == '__main__':
         print(f"Testing parameters: {params}")
         print("Running GenRec0")
         best_fitness, avg_fitness,test_score = GenRec0(final_df, **params)
-        print("Test score: {0}".format(test_score))
-        log_results(params, best_fitness, avg_fitness)
+        log_results(params, best_fitness, avg_fitness,test_score)
         
 
 
