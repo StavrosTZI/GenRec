@@ -2,12 +2,15 @@ import numpy as np
 import pandas as pd
 import os
 import random
-from sklearn.metrics.pairwise import cosine_similarity
 from multiprocessing import Pool
 from datetime import datetime
 import matplotlib.pyplot as plt
+import networkx as nx
+from sklearn.cluster._spectral import SpectralClustering
+
 
 RESULTS_FILE = "GenRec0Results.csv"
+TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
 
 
 #In this section a different aproach is used for the entire system using low-rank user embeddings
@@ -71,7 +74,7 @@ def evaluate_individual0(U, item_subset):
             continue
         # Predict and calculate error
         R_pred = predict_ratings0(U, known, unknown, R_known)
-        error = np.mean((R_pred - R_true) ** 2)
+        error = np.mean((R_pred - R_true) ** 2)+0.01 
         total_error += error
         count += 1
     return total_error / count if count > 0 else np.inf
@@ -81,12 +84,17 @@ def crossover0(parent1, parent2):
     mask = np.random.rand(RANK) < 0.5
     child1 = parent1 * mask + parent2 * (~mask)
     child2 = parent2 * mask + parent1 * (~mask)
+    # Add clipping after crossover
+    child1 = np.clip(child1, -1e3, 1e3)
+    child2 = np.clip(child2, -1e3, 1e3)
     return child1, child2
 
 def mutation0(individual, mutation_rate=0.1, scale=0.1):
     noise = np.random.normal(scale=scale, size=individual.shape)
     mask = np.random.rand(*individual.shape) < mutation_rate
-    return individual + mask * noise
+    mutated=individual + mask * noise
+    mutated = np.clip(mutated, -1e3, 1e3)  # Constrain to [-1000, 1000]
+    return  mutated
 
 def GenRec0(dataset, population_size, generations,
             sample_ratio=0.2, similarity_penalty=0.25,
@@ -131,15 +139,28 @@ def GenRec0(dataset, population_size, generations,
                 ])
             
             population = new_pop[:population_size]
-            
+            best_embeding = population[0]# Get the individual with the lowest fitness value
             # Logging
-            best = min(fitness.values())
-            avg = np.mean(list(fitness.values()))
-            graph_data.append((gen, avg))
-            print(f"Gen {gen}: Best={best:.2f}, Avg={avg:.2f}")
+            best_fitness = min(fitness.values())
+            avg_fitness = np.mean(list(fitness.values()))
+            graph_data.append((gen, avg_fitness))
+            print(f"Gen {gen}: Best={best_fitness:.2f}, Avg={avg_fitness:.2f}")
     
-    best_fitness = min(fitness.values())
-    avg_fitness = np.mean(list(fitness.values()))
+    #creating W from the low rank embeding matrix U
+    best_embeding = np.nan_to_num(best_embeding, nan=0.0, posinf=1e3, neginf=-1e3)
+    best_embeding = np.clip(best_embeding, -1e3, 1e3)
+
+    
+    
+    best_individual=best_embeding@best_embeding.T
+
+    best_individual = np.nan_to_num(best_individual, nan=0.0)
+    best_individual = np.clip(best_individual, -1, 1)
+
+    if np.isnan(best_individual).any() or np.isinf(best_individual).any():
+        print("WARNING: NaN/Inf detected in best_individual! Replacing with zeros.")
+        best_individual = np.nan_to_num(best_individual, nan=0.0, posinf=1.0, neginf=0.0)
+        
 
     #ploting avg fitness
     plt.figure(figsize=(8, 5))
@@ -150,15 +171,15 @@ def GenRec0(dataset, population_size, generations,
     plt.title("Generation vs Average Fitness")
     plt.grid(True, linestyle='--', alpha=0.6)
     plt.legend()
-    timestamp= datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+    
     folder = "figures"  # Change this to your desired folder
     os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
-    file_path = os.path.join(folder, f"Fitness_plot{timestamp}.png")
+    file_path = os.path.join(folder, f"Fitness_plot{TIMESTAMP}.png")
     plt.savefig(file_path)
 
     test_score = evaluate_individual0(population[0], test_subset)
     print("Last generation complete, best fitness:{0}avg_fitness:{1}test score:{2}".format(best_fitness,avg_fitness,test_score))
-    return best_fitness, avg_fitness, test_score
+    return best_individual,best_fitness, avg_fitness, test_score
 
 def log_results(params, best_fitness, avg_fitness, test_score):#function to log results to a csv file
     """Log parameters and results to a DataFrame and save to CSV."""
@@ -168,7 +189,7 @@ def log_results(params, best_fitness, avg_fitness, test_score):#function to log 
         "best_fitness": best_fitness,
         "avg_fitness": avg_fitness,
         "test_score": test_score,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": TIMESTAMP
     }
     
     # Append to file
@@ -178,6 +199,21 @@ def log_results(params, best_fitness, avg_fitness, test_score):#function to log 
     else:
         df.to_csv(RESULTS_FILE, mode='a', header=False, index=False)
 
+def cluster_graph(W,threshold=0.8):
+    # Approximate kernel embeddings
+    W_thresholded = np.where(W > threshold, W, 0)
+    G = nx.from_numpy_array(W_thresholded)
+    
+    # Add node metadata (example: cluster labels)
+    clusters = SpectralClustering(n_clusters=3).fit_predict(W)  # Optional
+    nx.set_node_attributes(G, dict(enumerate(clusters)), 'cluster')
+    
+    
+    folder = "figures"  # Change this to your desired folder
+    os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
+    file_path = os.path.join(folder, f"GRAPH{TIMESTAMP}.gexf")
+    
+    nx.write_gexf(G,file_path)
 
 if __name__ == '__main__':
     print("Script started")
@@ -195,14 +231,15 @@ if __name__ == '__main__':
     try:
         unique_items = final_df["item"].unique()
         print(f"Unique items: {unique_items.shape}")
+        unique_users= final_df["user"].unique()
         users_that_rated = {item: final_df[final_df["item"] == item]['user'].values for item in unique_items}
         print("Users that rated initialized successfully")
     except Exception as e:
         print(f"Failed to initialize users_that_rated: {e}")
     
     param_combinations =[ {
-            "population_size": 100,
-            "generations": 50,
+            "population_size": 50,
+            "generations": 20,
             "sample_ratio": 0.8,
             "similarity_penalty": 0.25,
             "elitism":4,
@@ -220,7 +257,8 @@ if __name__ == '__main__':
     for params in param_combinations:
         print(f"Testing parameters: {params}")
         print("Running GenRec0")
-        best_fitness, avg_fitness,test_score = GenRec0(final_df, **params)
+        best_individual,best_fitness, avg_fitness,test_score = GenRec0(final_df, **params)
+        cluster_graph(best_individual)
         log_results(params, best_fitness, avg_fitness,test_score)
         
 

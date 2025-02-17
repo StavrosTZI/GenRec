@@ -2,14 +2,18 @@ import numpy as np
 import pandas as pd
 import os
 import scipy.linalg
+from scipy.sparse.linalg import minres
 import random
 from sklearn.metrics.pairwise import cosine_similarity
 from multiprocessing import Pool
 from datetime import datetime
 import matplotlib.pyplot as plt
+from sklearn.cluster import SpectralClustering
+import networkx as nx
 
 
 RESULTS_FILE = "GenRec1Results.csv"
+TIMESTAMP=datetime.now().strftime("%Y-%m-%d %H_%M_%S")
 
 #Normalization 0-10 scale
 def quick_norm10(arr):
@@ -57,7 +61,7 @@ def predict_ratings2(Wu, Wl, Rmi, Rtrue,lambda_reg=0.01):
     avg_error = Ri_error / len(Ri_pred)
     return avg_error
     
-from scipy.sparse.linalg import minres
+
 
 def predict_ratings3(Wu, Wl, Rmi, Rtrue, lambda_reg=0.01):
     identity = np.eye(Wu.shape[0])
@@ -154,7 +158,7 @@ def mutation1(individual, mutation_rate=0.5, scale=0.1):
     mutated = np.clip(mutated, 0.001, 0.999)
     return mutated
 
-def mutation2(individual, mutation_rate=0.1, scale=0.1):  # Reduced from 0.5 to 0.1
+def mutation2(individual, mutation_rate=0.1, scale=0.5):  # Reduced from 0.5 to 0.1
     # Asymmetric noise during evolution
     noise = np.random.normal(scale=scale, size=individual.shape)
     mask = np.random.rand(*individual.shape) < mutation_rate
@@ -216,6 +220,19 @@ def calculate_diversity(population):
             # Compute cosine similarity between flattened matrices
             similarity += np.dot(ind1.flatten(), ind2.flatten()) / (np.linalg.norm(ind1) * np.linalg.norm(ind2))
         diversity_penalty[tuple(ind1.flatten())] = similarity
+    return diversity_penalty
+
+def calculate_diversity1(population):
+    diversity_penalty = {}
+    for i, ind1 in enumerate(population):
+        similarity = 0
+        for j, ind2 in enumerate(population):
+            if i == j: continue
+            # Flatten matrices and compute cosine similarity
+            sim = cosine_similarity(ind1.flatten().reshape(1, -1), 
+                                   ind2.flatten().reshape(1, -1))[0][0]
+            similarity += sim
+        diversity_penalty[i] = similarity
     return diversity_penalty
 
 #set of different heuristic populations functions
@@ -356,16 +373,35 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
                 offspring1 = mutation1(offspring1,mutation_rate,scale)#with parameters
                 offspring2 = mutation1(offspring2,mutation_rate,scale)#with parameters
                 new_pop.extend((offspring1,offspring2))
+            
             pop = new_pop[:population_size]
+            #best individual from last gen is also  preserved because of elitism
+            best_individual=pop[0]
             
             populations[generation]=pop
+            best_fitness=min(np.array(list(fitness.values())))
             avg_fitness=np.average(np.array(list(fitness.values())))
             graph_data.append([generation, avg_fitness])
 
             print(f"Generation {generation} complete,average fitness:, {avg_fitness}")
-    best_fitness=min(np.array(list(fitness.values())))
-    avg_fitness=np.average(np.array(list(fitness.values())))
     
+
+    correlation_matrix = best_individual
+
+    plt.figure(figsize=(10, 8))
+    plt.imshow(correlation_matrix, cmap="viridis")
+    plt.colorbar(label="Συντελεστής Συσχέτισης")
+    plt.title("Heatmap - Συσχέτιση χρηστών στον W")
+    plt.xlabel("Index")
+    plt.ylabel("Index")
+    plt.show()
+    folder = "figures"  # Change this to your desired folder
+    os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
+    file_path = os.path.join(folder, f"best individual{TIMESTAMP}.png")
+    plt.savefig(file_path)
+
+
+
     #plotting fitness per gen
     plt.figure(figsize=(8, 5))
     plt.plot(*zip(*graph_data), marker='o', linestyle='-', color='b', label="Avg Fitness") 
@@ -375,15 +411,14 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
     plt.title("Generation vs Average Fitness")
     plt.grid(True, linestyle='--', alpha=0.6)
     plt.legend()
-    timestamp= datetime.now().strftime("%Y-%m-%d %H_%M_%S")
     folder = "figures"  # Change this to your desired folder
     os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
-    file_path = os.path.join(folder, f"Fitness_plot{timestamp}.png")
+    file_path = os.path.join(folder, f"Fitness_plot{TIMESTAMP}.png")
     plt.savefig(file_path)
 
     test_score = evaluate_individual(pop[0], test_subset)
     print("Last generation complete, best fitness:{0}avg_fitness:{1}test fitness:{2}".format(best_fitness,avg_fitness,test_score))
-    return best_fitness,avg_fitness,test_score
+    return best_individual,best_fitness,avg_fitness,test_score
 
 #loaded functions
 
@@ -401,7 +436,7 @@ def log_results(params, best_fitness, avg_fitness, test_score):#function to log 
         "best_fitness": best_fitness,
         "avg_fitness": avg_fitness,
         "test_score": test_score,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": TIMESTAMP
     }
     
     # Append to file
@@ -410,7 +445,32 @@ def log_results(params, best_fitness, avg_fitness, test_score):#function to log 
         df.to_csv(RESULTS_FILE, index=False)
     else:
         df.to_csv(RESULTS_FILE, mode='a', header=False, index=False)
+def cluster_graph(W):
+    #perform spectral clustering on the users
+    model = SpectralClustering(n_clusters=5, affinity='precomputed')
+    clusters = model.fit_predict(W)
 
+    # Create a graph
+    G = nx.Graph()
+
+    # Add nodes with cluster labels
+    for user, cluster in zip(unique_users, clusters):
+        G.add_node(user, cluster=cluster)
+
+    # Add edges (threshold similarity to reduce clutter)
+    threshold = 0.5
+    for i in range(len(unique_users)):
+        for j in range(i + 1, len(unique_users)):
+            if W[i, j] >= threshold:
+                G.add_edge(unique_users[i], unique_users[j], weight=W[i, j])
+    folder = "figures"  # Change this to your desired folder
+    os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
+    file_path = os.path.join(folder, f"GRAPH{TIMESTAMP}.gexf")
+    
+    nx.write_gexf(G,file_path)
+
+
+    
 
 if __name__ == '__main__':
     print("Script started")
@@ -427,6 +487,7 @@ if __name__ == '__main__':
 
     try:
         unique_items = final_df["item"].unique()
+        unique_users= final_df["user"].unique()
         print(f"Unique items: {unique_items.shape}")
         users_that_rated = {item: final_df[final_df["item"] == item]['user'].values for item in unique_items}
         print("Users that rated initialized successfully")
@@ -436,15 +497,15 @@ if __name__ == '__main__':
     param_combinations =[ 
         {
             "population_size": 20,
-            "generations": 50,
+            "generations": 10,
             "sample_ratio": 0.8,
-            "similarity_penalty": 0.1,
+            "similarity_penalty": 0.5,
             "elitism":4,
             "lamda_reg":0.001,
             "split_ratio": 0.8,
             "noise_scale": 0.4,
             "mutation_rate": 0.01,
-            "scale":0.1 
+            "scale":0.5 
         }
     ]
     
@@ -454,7 +515,8 @@ if __name__ == '__main__':
     for params in param_combinations:
         print(f"Testing parameters: {params}")
         print("Running GenRec1")
-        best_fitness, avg_fitness,test_score = GenRec1(final_df, **params)
+        best_individual,best_fitness, avg_fitness,test_score = GenRec1(final_df, **params)
+        cluster_graph(best_individual)
         log_results(params, best_fitness, avg_fitness,test_score)
         
 
