@@ -13,7 +13,8 @@ import networkx as nx
 
 
 RESULTS_FILE = "GenRec1Results.csv"
-TIMESTAMP=datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+TIMESTAMP1=datetime.now()
+TIMESTAMP=TIMESTAMP1.strftime("%Y-%m-%d %H_%M_%S")
 
 #Normalization 0-10 scale
 def quick_norm10(arr):
@@ -416,7 +417,7 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
     file_path = os.path.join(folder, f"Fitness_plot{TIMESTAMP}.png")
     plt.savefig(file_path)
 
-    test_score = evaluate_individual(pop[0], test_subset)
+    test_score = evaluate_individual(best_individual, test_subset)
     print("Last generation complete, best fitness:{0}avg_fitness:{1}test fitness:{2}".format(best_fitness,avg_fitness,test_score))
     return best_individual,best_fitness,avg_fitness,test_score
 
@@ -428,7 +429,7 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
 
 
 
-def log_results(params, best_fitness, avg_fitness, test_score):#function to log results to a csv file
+def log_results(params, best_fitness, avg_fitness, test_score,runtime):#function to log results to a csv file
     """Log parameters and results to a DataFrame and save to CSV."""
     # Create a results row
     result_row = {
@@ -436,7 +437,8 @@ def log_results(params, best_fitness, avg_fitness, test_score):#function to log 
         "best_fitness": best_fitness,
         "avg_fitness": avg_fitness,
         "test_score": test_score,
-        "timestamp": TIMESTAMP
+        "timestamp": TIMESTAMP,
+        "runtime":runtime
     }
     
     # Append to file
@@ -496,15 +498,15 @@ if __name__ == '__main__':
     
     param_combinations =[ 
         {
-            "population_size": 20,
-            "generations": 10,
+            "population_size": 30,
+            "generations": 15,
             "sample_ratio": 0.8,
-            "similarity_penalty": 0.5,
-            "elitism":4,
+            "similarity_penalty": 0.4,
+            "elitism":2,
             "lamda_reg":0.001,
             "split_ratio": 0.8,
             "noise_scale": 0.4,
-            "mutation_rate": 0.01,
+            "mutation_rate": 0.005,
             "scale":0.5 
         }
     ]
@@ -517,7 +519,11 @@ if __name__ == '__main__':
         print("Running GenRec1")
         best_individual,best_fitness, avg_fitness,test_score = GenRec1(final_df, **params)
         cluster_graph(best_individual)
-        log_results(params, best_fitness, avg_fitness,test_score)
+        runtime=datetime.now()-TIMESTAMP1
+        hours, remainder = divmod(runtime.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        formatted_runtime = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+        log_results(params, best_fitness, avg_fitness,test_score,formatted_runtime)
         
 
 

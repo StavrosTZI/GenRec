@@ -10,7 +10,8 @@ from sklearn.cluster._spectral import SpectralClustering
 
 
 RESULTS_FILE = "GenRec0Results.csv"
-TIMESTAMP = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+TIMESTAMP1=datetime.now()
+TIMESTAMP=TIMESTAMP1.strftime("%Y-%m-%d %H_%M_%S")
 
 
 #In this section a different aproach is used for the entire system using low-rank user embeddings
@@ -181,7 +182,7 @@ def GenRec0(dataset, population_size, generations,
     print("Last generation complete, best fitness:{0}avg_fitness:{1}test score:{2}".format(best_fitness,avg_fitness,test_score))
     return best_individual,best_fitness, avg_fitness, test_score
 
-def log_results(params, best_fitness, avg_fitness, test_score):#function to log results to a csv file
+def log_results(params, best_fitness, avg_fitness, test_score, runtime):#function to log results to a csv file
     """Log parameters and results to a DataFrame and save to CSV."""
     # Create a results row
     result_row = {
@@ -189,7 +190,8 @@ def log_results(params, best_fitness, avg_fitness, test_score):#function to log 
         "best_fitness": best_fitness,
         "avg_fitness": avg_fitness,
         "test_score": test_score,
-        "timestamp": TIMESTAMP
+        "timestamp": TIMESTAMP,
+        "runtime":runtime
     }
     
     # Append to file
@@ -199,7 +201,7 @@ def log_results(params, best_fitness, avg_fitness, test_score):#function to log 
     else:
         df.to_csv(RESULTS_FILE, mode='a', header=False, index=False)
 
-def cluster_graph(W,threshold=0.8):
+def cluster_graph(W,threshold=0.4):
     # Approximate kernel embeddings
     W_thresholded = np.where(W > threshold, W, 0)
     G = nx.from_numpy_array(W_thresholded)
@@ -239,14 +241,14 @@ if __name__ == '__main__':
     
     param_combinations =[ {
             "population_size": 50,
-            "generations": 20,
+            "generations": 15,
             "sample_ratio": 0.8,
             "similarity_penalty": 0.25,
             "elitism":4,
             "lamda_reg":0.01,
             "split_ratio": 0.8,
             "noise_scale": 0.2,
-            "mutation_rate": 0.01,
+            "mutation_rate": 0.05,
             "scale":0.1 
         }]
       
@@ -259,7 +261,11 @@ if __name__ == '__main__':
         print("Running GenRec0")
         best_individual,best_fitness, avg_fitness,test_score = GenRec0(final_df, **params)
         cluster_graph(best_individual)
-        log_results(params, best_fitness, avg_fitness,test_score)
+        runtime=datetime.now()-TIMESTAMP1
+        hours, remainder = divmod(runtime.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        formatted_runtime = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+        log_results(params, best_fitness, avg_fitness,test_score,formatted_runtime)
         
 
 
