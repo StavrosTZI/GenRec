@@ -13,8 +13,6 @@ import networkx as nx
 
 
 RESULTS_FILE = "GenRec1Results.csv"
-TIMESTAMP1=datetime.now()
-TIMESTAMP=TIMESTAMP1.strftime("%Y-%m-%d %H_%M_%S")
 
 #Normalization 0-10 scale
 def quick_norm10(arr):
@@ -398,7 +396,7 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
     plt.show()
     folder = "figures"  # Change this to your desired folder
     os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
-    file_path = os.path.join(folder, f"best individual{TIMESTAMP}.png")
+    file_path = os.path.join(folder, f"best individual{timestamp}.png")
     plt.savefig(file_path)
 
 
@@ -414,7 +412,7 @@ def GenRec1(dataset,population_size, generations,sample_ratio=0.2,similarity_pen
     plt.legend()
     folder = "figures"  # Change this to your desired folder
     os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
-    file_path = os.path.join(folder, f"Fitness_plot{TIMESTAMP}.png")
+    file_path = os.path.join(folder, f"Fitness_plot{timestamp}.png")
     plt.savefig(file_path)
 
     test_score = evaluate_individual(best_individual, test_subset)
@@ -437,7 +435,7 @@ def log_results(params, best_fitness, avg_fitness, test_score,runtime):#function
         "best_fitness": best_fitness,
         "avg_fitness": avg_fitness,
         "test_score": test_score,
-        "timestamp": TIMESTAMP,
+        "timestamp": timestamp,
         "runtime":runtime
     }
     
@@ -467,7 +465,7 @@ def cluster_graph(W):
                 G.add_edge(unique_users[i], unique_users[j], weight=W[i, j])
     folder = "figures"  # Change this to your desired folder
     os.makedirs(folder, exist_ok=True)  # Create folder if it doesn't exist
-    file_path = os.path.join(folder, f"GRAPH{TIMESTAMP}.gexf")
+    file_path = os.path.join(folder, f"GRAPH{timestamp}.gexf")
     
     nx.write_gexf(G,file_path)
 
@@ -496,20 +494,237 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Failed to initialize users_that_rated: {e}")
     
-    param_combinations =[ 
+    param_combinations =[ {
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },
         {
-            "population_size": 30,
-            "generations": 15,
+            "population_size": 50,
+            "generations": 100,
             "sample_ratio": 0.8,
             "similarity_penalty": 0.4,
-            "elitism":2,
-            "lamda_reg":0.001,
+            "elitism":4,
+            "lamda_reg":0.01,
             "split_ratio": 0.8,
-            "noise_scale": 0.4,
-            "mutation_rate": 0.005,
-            "scale":0.5 
-        }
-    ]
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.4,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.1,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.3,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.6,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.001,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.01,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.1,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.06,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":2,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":5,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":8,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":10,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":15,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{
+            "population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 
+        },{"population_size": 50,
+            "generations": 100,
+            "sample_ratio": 0.6,
+            "similarity_penalty": 0.4,
+            "elitism":4,
+            "lamda_reg":0.01,
+            "split_ratio": 0.8,
+            "noise_scale": 0.2,
+            "mutation_rate": 0.03,
+            "scale":0.1 }],
     
     
     
@@ -517,9 +732,11 @@ if __name__ == '__main__':
     for params in param_combinations:
         print(f"Testing parameters: {params}")
         print("Running GenRec1")
+        timestamp1=datetime.now()
+        timestamp=timestamp1.strftime("%Y-%m-%d %H_%M_%S")
         best_individual,best_fitness, avg_fitness,test_score = GenRec1(final_df, **params)
         cluster_graph(best_individual)
-        runtime=datetime.now()-TIMESTAMP1
+        runtime=datetime.now()-timestamp1
         hours, remainder = divmod(runtime.total_seconds(), 3600)
         minutes, seconds = divmod(remainder, 60)
         formatted_runtime = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
