@@ -495,15 +495,15 @@ if __name__ == '__main__':
         print(f"Failed to initialize users_that_rated: {e}")
     
     param_combinations =[ {
-            "population_size": 50,
-            "generations": 50,
+            "population_size": 30,
+            "generations": 100,
             "sample_ratio": 0.3,
             "similarity_penalty": 0.25,
-            "elitism":5,
+            "elitism":12,
             "lamda_reg":0.01,
             "split_ratio": 0.8,
             "noise_scale": 0.2,
-            "mutation_rate": 0.03,
+            "mutation_rate": 0.3,
             "scale":0.1 
         }
         ]
@@ -517,6 +517,7 @@ if __name__ == '__main__':
         timestamp1=datetime.now()
         timestamp=timestamp1.strftime("%Y-%m-%d %H_%M_%S")
         best_individual,best_fitness, avg_fitness,test_score = GenRec1(final_df, **params)
+        
         cluster_graph(best_individual)
         runtime=datetime.now()-timestamp1
         hours, remainder = divmod(runtime.total_seconds(), 3600)
